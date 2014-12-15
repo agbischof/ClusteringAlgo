@@ -1,0 +1,311 @@
+---
+title: 'Nearest Neighbors: Tumor Histology'
+output: html_document
+---
+
+Use morphometric analysis of breast cancer H&Es matched with pathologist diagnosis to cluster data using nearest neighbors:
+
+
+Load data and have a look clean up a bit
+```{r}
+wbcd = read.csv("~/Dropbox/R ref/Machine Learning with R/chapter 3/wisc_bc_data.csv", stringsAsFactors = FALSE)
+
+str(wbcd)
+#remove first column containing ID
+wbcd = wbcd[-1]
+
+table(wbcd$diagnosis)
+#357 benign (b) and 212 malignant (M) currently being expressed as char
+#make diagnosis into factor variable with more descriptive titles
+wbcd$diagnosis = factor(wbcd$diagnosis, levels = c("B", "M"), labels = c("Benign", "Malignant"))
+
+
+table(wbcd$diagnosis)
+round(prop.table(table(wbcd$diagnosis)) *100, digits = 1)
+```
+
+Take a look at numerical data and clean:
+```{r}
+summary(wbcd[c("radius_mean", "area_mean", "smoothness_mean")])
+
+# values are very different need to normalize
+
+Std_normalize = function(x)
+  {return ((x-min(x)) / (max(x) - min(x)))}
+
+#test normalization functions
+test1 = c(1, 2, 3, 4, 5)
+test2 = c(10, 20, 30, 40, 50)
+
+Std_normalize(test1)
+Std_normalize(test2)
+
+#apply Normalization to all numerical data
+wbcd_sn = as.data.frame(lapply(wbcd[2:31], Std_normalize))
+
+summary(wbcd_sn[c("radius_mean", "area_mean", "smoothness_mean")])
+```
+
+  radius_mean       area_mean      smoothness_mean 
+ Min.   :0.0000   Min.   :0.0000   Min.   :0.0000  
+ 1st Qu.:0.2233   1st Qu.:0.1174   1st Qu.:0.3046  
+ Median :0.3024   Median :0.1729   Median :0.3904  
+ Mean   :0.3382   Mean   :0.2169   Mean   :0.3948  
+ 3rd Qu.:0.4164   3rd Qu.:0.2711   3rd Qu.:0.4755  
+ Max.   :1.0000   Max.   :1.0000   Max.   :1.0000 
+
+split data into a training and test (100) dataset
+```{r}
+#data is already randomized in this case so we can just take the final 100 as our test set
+wbcd_train = wbcd_sn[1:469, ]
+wbcd_test = wbcd_sn[470:569, ]
+
+wbcd_train_labels = wbcd[1:469, 1]
+wbcd_test_labels = wbcd[470:569, 1]
+```
+
+
+First try to train the model and classify with standard min-max normalization 
+```{r}
+library(class)
+
+#choose k = 21 as this is ~sqrt(469) and odd to avoid ties
+wbcd_test_pred = knn(train = wbcd_train, test = wbcd_test, cl = wbcd_train_labels, k = 21)
+```
+
+Evaluate the model performance
+```{r}
+library(gmodels)
+
+CrossTable(x = wbcd_test_labels, y = wbcd_test_pred, prop.chisq = FALSE)
+```
+CrossTable:
+ Cell Contents
+|-------------------------|
+|                       N |
+|           N / Row Total |
+|           N / Col Total |
+|         N / Table Total |
+|-------------------------|
+
+ 
+Total Observations in Table:  100 
+
+ 
+                 | wbcd_test_pred 
+wbcd_test_labels |    Benign | Malignant | Row Total | 
+-----------------|-----------|-----------|-----------|
+          Benign |        61 |         0 |        61 | 
+                 |     1.000 |     0.000 |     0.610 | 
+                 |     0.968 |     0.000 |           | 
+                 |     0.610 |     0.000 |           | 
+-----------------|-----------|-----------|-----------|
+       Malignant |         2 |        37 |        39 | 
+                 |     0.051 |     0.949 |     0.390 | 
+                 |     0.032 |     1.000 |           | 
+                 |     0.020 |     0.370 |           | 
+-----------------|-----------|-----------|-----------|
+    Column Total |        63 |        37 |       100 | 
+                 |     0.630 |     0.370 |           | 
+-----------------|-----------|-----------|-----------|
+
+
+
+Indicates that there is 2% error, 2 cases were classified as benign when they had clinically been called malignant. 
+
+
+Try Z normalization
+```{r}
+#use scale to z normalize the data
+wbcd_zn = as.data.frame(scale(wbcd[-1]))
+
+summary(wbcd_zn$area_mean)
+
+#data is already randomized in this case so we can just take the final 100 as our test set
+wbcd_train = wbcd_zn[1:469, ]
+wbcd_test = wbcd_zn[470:569, ]
+
+#classify
+wbcd_test_pred = knn(train = wbcd_train, test = wbcd_test, cl = wbcd_train_labels, k = 21)
+
+#compare
+CrossTable(x = wbcd_test_labels, y = wbcd_test_pred, prop.chisq = FALSE)
+```
+CrossTable:
+ Cell Contents
+|-------------------------|
+|                       N |
+|           N / Row Total |
+|           N / Col Total |
+|         N / Table Total |
+|-------------------------|
+
+ 
+Total Observations in Table:  100 
+
+ 
+                 | wbcd_test_pred 
+wbcd_test_labels |    Benign | Malignant | Row Total | 
+-----------------|-----------|-----------|-----------|
+          Benign |        61 |         0 |        61 | 
+                 |     1.000 |     0.000 |     0.610 | 
+                 |     0.924 |     0.000 |           | 
+                 |     0.610 |     0.000 |           | 
+-----------------|-----------|-----------|-----------|
+       Malignant |         5 |        34 |        39 | 
+                 |     0.128 |     0.872 |     0.390 | 
+                 |     0.076 |     1.000 |           | 
+                 |     0.050 |     0.340 |           | 
+-----------------|-----------|-----------|-----------|
+    Column Total |        66 |        34 |       100 | 
+                 |     0.660 |     0.340 |           | 
+-----------------|-----------|-----------|-----------|
+
+Z normalization led to a slightly worse result oveall, with only 95% correctly classified
+
+
+
+Try testing alternative values of k
+```{r}
+#assign training and test data from standard normalziation again
+wbcd_train = wbcd_sn[1:469, ]
+wbcd_test = wbcd_sn[470:569, ]
+
+#classify choose k = 1
+wbcd_test_pred_1 = knn(train = wbcd_train, test = wbcd_test, cl = wbcd_train_labels, k = 1)
+
+# classify choose k = 5
+wbcd_test_pred_5 = knn(train = wbcd_train, test = wbcd_test, cl = wbcd_train_labels, k = 5)
+
+#choose k = 11
+wbcd_test_pred_11 = knn(train = wbcd_train, test = wbcd_test, cl = wbcd_train_labels, k = 11)
+
+#choose k = 15
+wbcd_test_pred_15 = knn(train = wbcd_train, test = wbcd_test, cl = wbcd_train_labels, k = 15)
+
+#choose k = 21
+wbcd_test_pred_21 = knn(train = wbcd_train, test = wbcd_test, cl = wbcd_train_labels, k = 21)
+
+#choose k = 27
+wbcd_test_pred_27 = knn(train = wbcd_train, test = wbcd_test, cl = wbcd_train_labels, k = 27)
+
+
+
+#compare
+CrossTable(x = wbcd_test_labels, y = wbcd_test_pred_1, prop.chisq = FALSE)
+CrossTable(x = wbcd_test_labels, y = wbcd_test_pred_5, prop.chisq = FALSE)
+CrossTable(x = wbcd_test_labels, y = wbcd_test_pred_11, prop.chisq = FALSE)
+CrossTable(x = wbcd_test_labels, y = wbcd_test_pred_15, prop.chisq = FALSE)
+CrossTable(x = wbcd_test_labels, y = wbcd_test_pred_21, prop.chisq = FALSE)
+CrossTable(x = wbcd_test_labels, y = wbcd_test_pred_27, prop.chisq = FALSE)
+```
+
+ k = 1
+                 | wbcd_test_pred_1 
+wbcd_test_labels |    Benign | Malignant | Row Total | 
+-----------------|-----------|-----------|-----------|
+          Benign |        58 |         3 |        61 | 
+                 |     0.951 |     0.049 |     0.610 | 
+                 |     0.983 |     0.073 |           | 
+                 |     0.580 |     0.030 |           | 
+-----------------|-----------|-----------|-----------|
+       Malignant |         1 |        38 |        39 | 
+                 |     0.026 |     0.974 |     0.390 | 
+                 |     0.017 |     0.927 |           | 
+                 |     0.010 |     0.380 |           | 
+-----------------|-----------|-----------|-----------|
+    Column Total |        59 |        41 |       100 | 
+                 |     0.590 |     0.410 |           | 
+-----------------|-----------|-----------|-----------|
+ 
+
+k = 5
+                 | wbcd_test_pred_5 
+wbcd_test_labels |    Benign | Malignant | Row Total | 
+-----------------|-----------|-----------|-----------|
+          Benign |        61 |         0 |        61 | 
+                 |     1.000 |     0.000 |     0.610 | 
+                 |     0.968 |     0.000 |           | 
+                 |     0.610 |     0.000 |           | 
+-----------------|-----------|-----------|-----------|
+       Malignant |         2 |        37 |        39 | 
+                 |     0.051 |     0.949 |     0.390 | 
+                 |     0.032 |     1.000 |           | 
+                 |     0.020 |     0.370 |           | 
+-----------------|-----------|-----------|-----------|
+    Column Total |        63 |        37 |       100 | 
+                 |     0.630 |     0.370 |           | 
+-----------------|-----------|-----------|-----------|
+
+                 | wbcd_test_pred_11 
+wbcd_test_labels |    Benign | Malignant | Row Total | 
+-----------------|-----------|-----------|-----------|
+          Benign |        61 |         0 |        61 | 
+                 |     1.000 |     0.000 |     0.610 | 
+                 |     0.953 |     0.000 |           | 
+                 |     0.610 |     0.000 |           | 
+-----------------|-----------|-----------|-----------|
+       Malignant |         3 |        36 |        39 | 
+                 |     0.077 |     0.923 |     0.390 | 
+                 |     0.047 |     1.000 |           | 
+                 |     0.030 |     0.360 |           | 
+-----------------|-----------|-----------|-----------|
+    Column Total |        64 |        36 |       100 | 
+                 |     0.640 |     0.360 |           | 
+-----------------|-----------|-----------|-----------|
+
+
+                 | wbcd_test_pred_15 
+wbcd_test_labels |    Benign | Malignant | Row Total | 
+-----------------|-----------|-----------|-----------|
+          Benign |        61 |         0 |        61 | 
+                 |     1.000 |     0.000 |     0.610 | 
+                 |     0.953 |     0.000 |           | 
+                 |     0.610 |     0.000 |           | 
+-----------------|-----------|-----------|-----------|
+       Malignant |         3 |        36 |        39 | 
+                 |     0.077 |     0.923 |     0.390 | 
+                 |     0.047 |     1.000 |           | 
+                 |     0.030 |     0.360 |           | 
+-----------------|-----------|-----------|-----------|
+    Column Total |        64 |        36 |       100 | 
+                 |     0.640 |     0.360 |           | 
+-----------------|-----------|-----------|-----------|
+
+                 | wbcd_test_pred_21 
+wbcd_test_labels |    Benign | Malignant | Row Total | 
+-----------------|-----------|-----------|-----------|
+          Benign |        61 |         0 |        61 | 
+                 |     1.000 |     0.000 |     0.610 | 
+                 |     0.968 |     0.000 |           | 
+                 |     0.610 |     0.000 |           | 
+-----------------|-----------|-----------|-----------|
+       Malignant |         2 |        37 |        39 | 
+                 |     0.051 |     0.949 |     0.390 | 
+                 |     0.032 |     1.000 |           | 
+                 |     0.020 |     0.370 |           | 
+-----------------|-----------|-----------|-----------|
+    Column Total |        63 |        37 |       100 | 
+                 |     0.630 |     0.370 |           | 
+-----------------|-----------|-----------|-----------|
+
+                 | wbcd_test_pred_27 
+wbcd_test_labels |    Benign | Malignant | Row Total | 
+-----------------|-----------|-----------|-----------|
+          Benign |        61 |         0 |        61 | 
+                 |     1.000 |     0.000 |     0.610 | 
+                 |     0.938 |     0.000 |           | 
+                 |     0.610 |     0.000 |           | 
+-----------------|-----------|-----------|-----------|
+       Malignant |         4 |        35 |        39 | 
+                 |     0.103 |     0.897 |     0.390 | 
+                 |     0.062 |     1.000 |           | 
+                 |     0.040 |     0.350 |           | 
+-----------------|-----------|-----------|-----------|
+    Column Total |        65 |        35 |       100 | 
+                 |     0.650 |     0.350 |           | 
+-----------------|-----------|-----------|-----------|
+
+
+#how to do a random sample of the data by reordering
+letters[1:10][sample.int(10,10)]
