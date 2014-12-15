@@ -1,0 +1,161 @@
+---
+title: "NaiveBayes_spam"
+author: "Ashley Bischof"
+date: "December 13, 2014"
+output: html_document
+---
+
+#Use Naive Bayes to classify SMS text messages into spam or not:
+
+## Prepare and Clean Data
+
+Pull in Data and have a quick look:
+```{r}
+sms_raw = read.csv("~/Dropbox/R ref/Machine Learning with R/chapter 4/sms_spam.csv", stringsAsFactors = FALSE)
+
+str(sms_raw)
+
+sms_raw$type = factor(sms_raw$type)
+str(sms_raw)
+
+table(sms_raw$type)
+```
+'data.frame':  5559 obs. of  2 variables:
+ $ type: Factor w/ 2 levels "ham","spam": 1 1 1 2 2 1 1 1 2 1 ...
+ $ text: chr  "Hope you are having a good week. Just checking in" "K..give back my thanks." "Am also doing in cbe only. But have to pay." "complimentary 4 STAR Ibiza Holiday or £10,000 cash needs your URGENT collection. 09066364349 NOW from Landline not to lose out!"| __truncated__ ...
+
+ ham spam 
+4812  747 
+
+Process the texts into single words and remove punctuation and uninteresting words
+```{r}
+library(tm)
+
+sms_corpus = VCorpus(VectorSource(sms_raw$text))
+#build a corpus of documents
+#sms_corpus = Corpus(VectorSource(sms_raw$text))
+
+print(sms_corpus)
+inspect(sms_corpus[1:3])
+
+#learn more about text importing options
+#print(vignette("tm")) 
+
+#CLEAN TEXT DATA
+#convert all messages to lowercase
+corpus_clean = tm_map(sms_corpus, content_transformer(tolower))
+#remove numbers
+corpus_clean = tm_map(corpus_clean, content_transformer(removeNumbers))
+
+#remove stop words defined by tm
+#stopwords()
+corpus_clean = tm_map(corpus_clean, removeWords, stopwords())
+#remove punctuation
+corpus_clean = tm_map(corpus_clean, content_transformer(removePunctuation))
+
+#remove extra whitespace
+corpus_clean = tm_map(corpus_clean, stripWhitespace)
+
+inspect(corpus_clean[1:3])
+
+#tokenization: split the messages into individual components
+#create sparse matrix: rows are documents and columns are terms/words
+#each cell stores a count of the times the word in the column appears in the doc indicated by the row
+sms_dtm = DocumentTermMatrix(corpus_clean)
+```
+
+
+
+Split the data into a training and test dataset
+  random order so take first 75% (4169) for training and last 1390 for test
+```{r}
+#split raw data
+sms_raw_train = sms_raw[1:4169, ]
+sms_raw_test = sms_raw[4170:5559,]
+
+#split document-term matrix
+sms_dtm_train = sms_dtm[1:4169, ]
+sms_dtm_test = sms_dtm[4170:5559, ]
+
+#split corpus
+sms_corpus_train = corpus_clean[1:4169]
+sms_corpus_test = corpus_clean[4170:5559]
+
+
+#compare training and test datasets
+prop.table(table(sms_raw_train$type))
+prop.table(table(sms_raw_test$type))
+```
+
+Visualize using word clouds
+```{r}
+library(wordcloud)
+
+wordcloud(corpus_clean, min.freq = 40, random.order = FALSE)
+wordcloud(sms_corpus_train, min.freq = 40, random.order = FALSE)
+
+spam = subset(sms_raw_train, type == 'spam')
+ham = subset(sms_raw_train, type == 'ham')
+
+wordcloud(spam$text, max.words = 40, scale = c(3, 0.5))
+wordcloud(ham$text, max.words = 40, scale = c(3, 0.5))
+```
+
+
+
+Transform the sparse matrix into a data structure to train a naive Bayes classifier
+Eliminate words which appear in less than 0.1% of records (5 here)
+```{r}
+#pick out the words that appear at least 5 times
+sms_dict = findFreqTerms(sms_dtm_train, 5)
+
+#pull the words that appear at least 5 times
+sms_train = DocumentTermMatrix(sms_corpus_train, list(dictionary = sms_dict))
+sms_test = DocumentTermMatrix(sms_corpus_test, list(dictionary = sms_dict))
+
+#convert counts to a factor variable (yes or no) for word appearance
+convert_counts = function(x) {
+  x = ifelse(x > 0, 1, 0)
+  x = factor(x, levels = c(0,1), labels = c("No", "Yes"))
+  return(x)
+  }
+
+sms_train = apply(sms_train, MARGIN = 2, convert_counts)
+sms_test = apply(sms_test, MARGIN = 2, convert_counts)
+```
+
+
+
+## Training a model on the data
+```{r}
+library(e1071)
+#also check out k1aR NaiveBayes()
+
+#build model on sms_train matrix with laplace = 0
+sms_classifier = naiveBayes(sms_train, sms_raw_train$type)
+```
+
+
+##Perform predition and evaluate model performance
+```{r}
+#predict sms_test group with sms_classifier
+sms_test_pred = predict(sms_classifier, sms_test)
+
+#evaluate model performance
+library(gmodels)
+CrossTable(sms_test_pred, sms_raw_test$type, prop.chisq = FALSE, prop.t = FALSE, dnn = c('predicted', 'actual'))
+```
+
+
+Test model performance with laplace = 1
+```{r}
+#build model on sms_train matrix with laplace = 1
+sms_classifier2 = naiveBayes(sms_train, sms_raw_train$type, laplace = 1)
+
+#predict sms_test group with sms_classifier
+sms_test_pred2 = predict(sms_classifier2, sms_test)
+
+#evaluate model performance
+CrossTable(sms_test_pred2, sms_raw_test$type, prop.chisq = FALSE, prop.t = FALSE, dnn = c('predicted', 'actual'))
+```
+
