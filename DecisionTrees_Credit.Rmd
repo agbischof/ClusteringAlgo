@@ -1,0 +1,56 @@
+---
+title: "Decision_Trees_Bank_Loans"
+author: "Ashley Bischof"
+output: html_document
+---
+
+#Develop a simple credit approval model using C5.0 decision trees:
+
+## Prepare and Clean Data
+
+```{r}
+credit = read.csv("~/Dropbox/R ref/Machine Learning with R/chapter 5/credit.csv")
+
+str(credit)
+
+table(credit$checking_balance)
+table(credit$savings_balance)
+
+summary(credit$months_loan_duration)
+summary(credit$amount)
+
+table(credit$default)
+```
+
+
+Randomize and choose training (90%) and test (10%) dataset
+```{r}
+set.seed(12345)
+credit_rand = credit[order(runif(1000)), ]
+
+#chek that randomized stats are still the same but order is different
+summary(credit$amount)
+summary(credit_rand$amount)
+head(credit$amount)
+head(credit_rand$amount)
+
+#split into train and test dataset
+credit_train = credit_rand[1:900, ]
+credit_test = credit_rand[901:1000, ]
+
+#check that ~30% of defaulted loans are in each dataset
+prop.table(table(credit_train$default))
+prop.table(table(credit_test$default))
+```
+
+
+#Train the Model (using C5.0 C50 package)
+```{r}
+library(C50)
+
+
+```
+
+
+
+

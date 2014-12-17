@@ -1,7 +1,6 @@
 ---
 title: "NaiveBayes_spam"
 author: "Ashley Bischof"
-date: "December 13, 2014"
 output: html_document
 ---
 
