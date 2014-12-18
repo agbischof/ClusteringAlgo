@@ -1,0 +1,39 @@
+---
+title: "Rule_Learner_Poisonous_Mushrooms"
+author: "Ashley Bischof"
+output: html_document
+---
+
+#Develop a simple credit approval model using C5.0 decision trees:
+
+## Prepare and Clean Data
+```{r}
+mushrooms = read.csv("~/Dropbox/R ref/Machine Learning with R/chapter 5/mushrooms.csv")
+
+str(mushrooms)
+
+#drop veil_type which only contains one factor level (therefore no info)
+mushrooms$veil_type = NULL
+
+#what is the split of the class variable
+table(mushrooms$type)
+```
+
+In this case we assume the 8214 mushrooms represent all mushrooms thus we will learn from all samples to develop rules for foragers
+
+##Training the Model on the data
+###Train the 1R classifier
+```{r}
+library(RWeka)
+
+mushroom_1R = OneR(type ~ ., data = mushrooms) #. means consider all
+mushroom_1R
+summary(mushroom_1R)
+```
+
+
+### Improving Model Peformance by adding more rules
+```{r}
+
+```
+
