@@ -34,6 +34,7 @@ summary(mushroom_1R)
 
 ### Improving Model Peformance by adding more rules
 ```{r}
-
+mushroom_JRip = JRip(type ~ ., data = mushrooms)
+mushroom_JRip
 ```
 
