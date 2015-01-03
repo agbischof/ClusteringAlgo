@@ -1,0 +1,124 @@
+---
+title: "SVMs_OpticalCharRecog"
+author: "Ashley Bischof"
+date: "December 31, 2014"
+output: html_document
+---
+
+###Support Vector Machines (SVMs)
+Perform Optical Character Recognition (OCR) with SVMs
+
+#Preparation of Data
+-typically document would be divided into a matrix such that each chunk contains only one letter, here this has already been done
+-data contains only alphabetic characters in English A through Z
+ 
+-dataset contains 20,000 examples of 26 english capital letters in 20 different randomly reshaped and distorted black and white fonts
+-these were converted to pixels and 16 attributes recorded
+
+Exploring and preparing the data
+```{r}
+letters = read.csv('~/Dropbox/R ref/Machine Learning with R/chapter 7/letterdata.csv')
+
+str(letters)
+summary(letters)
+#features must be numeric and scaled on a fiarly small interval
+#all features are numeric but they are variable, however this will be
+#taken care of by the R package
+
+#data is already normalized so separation to test and training data is easy
+letters_train = letters[1:16000, ]
+letters_test = letters[16001:20000, ]
+```
+
+#Train the Model
+-e1071 implements LIBSVM
+-k1aR for SVMlight
+-kernlab
+```{r}
+library(kernlab)
+letter_classifier = ksvm(letter ~ ., data = letters_train, kernel = 'vanilladot')
+letter_classifier
+```
+
+#Evaluate Model Performance
+```{r}
+letter_predictions = predict(letter_classifier, letters_test)
+head(letter_predictions)
+
+agreement = letter_predictions == letters_test$letter
+table(agreement)
+prop.table(table(agreement))
+#.84
+
+table(letter_predictions, letters_test$letter)
+```
+
+#Improve Model Performance - rbf kernel
+```{r}
+letter_classifier_rbf = ksvm(letter ~ ., data = letters_train, kernel = 'rbfdot')
+
+letter_predictions_rbf = predict(letter_classifier_rbf, letters_test)
+
+agreement_rbf = letter_predictions_rbf == letters_test$letter
+table(agreement_rbf)
+prop.table(table(agreement_rbf))
+#.93
+
+table(letter_predictions_rbf, letters_test$letter)
+```
+
+
+#Improve Model Performance - polydot
+```{r}
+letter_classifier_poly = ksvm(letter ~ ., data = letters_train, kernel = 'polydot')
+
+letter_predictions_poly = predict(letter_classifier_poly, letters_test)
+
+agreement_poly = letter_predictions_poly == letters_test$letter
+table(agreement_poly)
+prop.table(table(agreement_poly))
+#.84 - not as good as rbf
+```
+
+#Improve Model Performance - tanhdot
+```{r}
+letter_classifier_tan = ksvm(letter ~ ., data = letters_train, kernel = 'tanhdot')
+
+letter_predictions_tan = predict(letter_classifier_tan, letters_test)
+
+agreement_tan = letter_predictions_tan == letters_test$letter
+table(agreement_tan)
+prop.table(table(agreement_tan))
+#.08 poor performance!!
+```
+
+
+#Improve Model Performance - rbf kernel with c of 5
+```{r}
+letter_classifier_rbf_c5 = ksvm(letter ~ ., data = letters_train, kernel = 'rbfdot', C = 5)
+
+letter_predictions_rbf_c5 = predict(letter_classifier_rbf_c5, letters_test)
+
+agreement_rbf_c5 = letter_predictions_rbf_c5 == letters_test$letter
+table(agreement_rbf_c5)
+prop.table(table(agreement_rbf_c5))
+#.962
+
+table(letter_predictions_rbf_c5, letters_test$letter)
+```
+
+
+#Improve Model Performance - rbf kernel with c of 5
+```{r}
+letter_classifier_rbf_c20 = ksvm(letter ~ ., data = letters_train, kernel = 'rbfdot', C = 20)
+
+letter_predictions_rbf_c20 = predict(letter_classifier_rbf_c20, letters_test)
+
+agreement_rbf_c20 = letter_predictions_rbf_c20 == letters_test$letter
+table(agreement_rbf_c20)
+prop.table(table(agreement_rbf_c20))
+#.969
+
+table(letter_predictions_rbf_c20, letters_test$letter)
+```
+

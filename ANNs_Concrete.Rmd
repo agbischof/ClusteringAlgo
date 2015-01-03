@@ -1,0 +1,81 @@
+---
+title: "ANNs_Concrete"
+author: "Ashley Bischof"
+---
+
+#Artificial Neural Networks (ANNs) for Concrete Strength
+
+Model concrete strength based on features in dataset
+
+#Expolre and prepare data
+```{r}
+concrete= read.csv("~/Dropbox/R ref/Machine Learning with R/chapter 7/concrete.csv")
+
+str(concrete)
+#8 features and outcome variable strength
+summary(concrete)
+#all features are currently positively bound 
+#have values far from zero and are not on the same scale
+#NEED TO CARRY OUT STANDARDIZATION
+
+hist(concrete$strength) #not very guassian
+hist(concrete$cement) #not guassian
+hist(concrete$slag) #not guassian, many zeros
+hist(concrete$ash) #not guassian, many zeros
+hist(concrete$water) #guassian
+hist(concrete$superplastic) #not guassian, many zeros
+hist(concrete$coarseagg) #not guassian
+hist(concrete$fineagg) #fairly guassian
+hist(concrete$age) #not guassian, sparse and many zeros
+
+#because not all features are well behaved guassians standard normalization is used to a 0-1 range
+Std_normalize = function(x)
+  {return ((x-min(x)) / (max(x) - min(x)))}
+
+concrete_norm = as.data.frame(lapply(concrete, Std_normalize))
+
+summary(concrete_norm)
+
+#split into training and test 
+concrete_train = concrete_norm[1:773, ]
+concrete_test = concrete_norm[774:1030, ]
+```
+
+##Train the multilayer feedforward neural network 
+using neuralnet package
+alternatives for ANN implementation: nnet (standard) and RSNNS
+```{r}
+library(neuralnet)
+
+#fit the simplest multilayer feedforward network
+concrete_model = neuralnet(strength ~ cement + slag + ash + water +
+                             superplastic + coarseagg + fineagg + 
+                             age, data = concrete_train)
+
+plot(concrete_model)
+
+#evaluate model performance
+model_results = compute(concrete_model, concrete_test[1:8])
+predicted_strength = model_results$net.result
+
+plot(x = concrete)test$strength, predicted_strength)
+cor(predicted_strength, concrete_test$strength)
+```
+
+##Impove model performance with more hidden nodes
+```{r}
+concrete_model2 = neuralnet(strength ~ cement + slag + ash + water +
+                             superplastic + coarseagg + fineagg + 
+                             age, data = concrete_train, hidden = 5)
+plot(concrete_model2)
+
+#evaluate model performance
+model_results2 = compute(concrete_model2, concrete_test[1:8])
+predicted_strength2 = model_results2$net.result
+
+plot(x = concrete)test$strength, predicted_strength2)
+cor(predicted_strength2, concrete_test$strength)
+
+
+```
+

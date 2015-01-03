@@ -1,0 +1,81 @@
+---
+title: "RegressionTree_WineClassification"
+author: "Ashley Bischof"
+---
+
+##Using Regression Trees to Classify Wine
+Setup a Wine classification system using chemical properties of wine to rate wine compared to expert wine taster ratings.
+
+##Explore and prepare data
+```{r}
+wine = read.csv("~/Dropbox/R ref/Machine Learning with R/chapter 6/whitewines.csv")
+
+str(wine)
+#11 features and the outcome quality
+
+#no normalization required for regression trees
+#look for some variability in scores
+hist(wine$quality)
+
+summary(wine)
+
+#divide into test and training datasets
+wine_train = wine[1:3750, ]
+wine_test = wine[3751:4898, ]
+```
+
+
+##Train the model with CART implementation (rpart)
+```{r}
+library(rpart) #implements CART 
+
+m.rpart = rpart(quality ~ ., data = wine_train)
+
+m.rpart
+summary(m.rpart)
+library(rpart.plot) ####return here package needs to be installed
+rpart.plot(m.rpart, digits = 3)
+rpart.plot(m.rpart, digits = 4, fallen.leaves = TRUE, type = 3, extra = 101)
+```
+
+#Model Evalulation
+```{r}
+p.rpart = predict(m.rpart, wine_test)
+
+summary(p.rpart)
+summary(wine_test$quality)
+#model predictions are on a much too narrow range
+
+plot(x = p.rpart, y = wine_test$quality)
+cor(p.rpart, wine_test$quality)
+
+#calculate mean absoute error
+MAE = function(actual, predicted) 
+{
+  mean(abs(actual-predicted))
+}
+
+MAE(p.rpart, wine_test$quality)
+#our model 0.587
+
+#predict the mean 
+MAE(mean(wine_test$quality), wine_test$quality)
+#0.662 - we didn't improve by much
+```
+
+##Model Improvements using model trees 
+###replace the leaf nodes with regression models using M5'
+```{r}
+library(RWeka)
+m.m5p = M5P(quality ~ ., data = wine_train)
+
+m.m5p
+summary(m.m5p)
+
+p.m5p = predict(m.m5p, wine_test)
+
+plot(x = p.m5p, y = wine_test$quality)
+cor(p.m5p, wine_test$quality)
+MAE(wine_test$quality, p.m5p)
+```
+

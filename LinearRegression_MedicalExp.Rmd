@@ -1,0 +1,156 @@
+---
+title: "LinearRegression_MedicalExp"
+author: "Ashley Bischof"
+---
+
+Use linear regression to predict medial expenses based on demographic data
+
+##Read in and Explore the Data
+```{r}
+library(ggplot2)
+
+insurance = read.csv("~/Dropbox/R ref/Machine Learning with R/chapter 6/insurance.csv", stringsAsFactors = TRUE)
+
+str(insurance)
+#Data inlcudes: age, sex, bmi, children, smoker, region, charges (dependent variable)
+
+summary(insurance$charges)
+ggplot(insurance, aes(charges)) + geom_histogram() + theme_minimal()
+#the charges data is extremely right skewed 
+ggplot(insurance, aes(charges)) + geom_histogram() + theme_minimal() + scale_x_log10()
+#logging the data improves this but it is still not very guassian
+
+
+#determine the equality of the levels in factor variables:
+table(insurance$sex) #equal
+table(insurance$region) #equal
+table(insurance$smoker) #~4x as many nonsmokers
+
+#understand distribution of continuous variables:
+ggplot(insurance, aes(age)) + geom_histogram() + theme_minimal()
+#fairly well disributed
+ggplot(insurance, aes(bmi)) + geom_histogram() + theme_minimal()
+#pretty guassian
+
+ggplot(insurance, aes(children)) + geom_histogram() + theme_minimal()
+#count variable, extremely right skewed, and strictly non-negative with the highest bar at 0
+
+
+#take a quick look at correlations between variables
+cor(insurance[c("age", "bmi", "children", "charges")])
+#no strong correlations but a few week:
+#age and bmi; age and charges; bmi and charges, children and charges
+
+#Visualize with a scatterplot matrix
+pairs(insurance[c("age", "bmi", "children", "charges")])
+
+library(psych)
+pairs.panels(insurance[c("age", "bmi", "children", "charges")])
+ggpairs(insurance, columns = c("age", "bmi", "children", "charges")) 
+
+ggplot(insurance, aes(x = sex, y = charges)) + geom_boxplot() + theme_minimal()
+ggplot(insurance, aes(x = region, y = charges)) + geom_boxplot() + theme_minimal()
+ggplot(insurance, aes(x = factor(children), y = charges)) + geom_boxplot() + theme_minimal()
+ggplot(insurance, aes(x = smoker, y = charges)) + geom_boxplot() + theme_minimal()
+```
+
+##Fit a Linear Model
+```{r}
+ins_model = lm(charges ~ ., data = insurance)
+ins_model
+```
+
+##Evaluate Model Performance
+```{r}
+summary(ins_model)
+
+#plot residuals
+res = resid(ins_model)
+fitted = predict(ins_model)
+plot(y = res, x = fitted)
+plot(y = res, x = insurance$bmi)
+hist(res)
+```
+
+
+##Fit the model with non-linear, binary indicators, and interactions included
+```{r}
+#age squared
+insurance$age2 = insurance$age^2
+
+#bmi binary up to overweight (30)
+insurance$bmi30 = ifelse(insurance$bmi >= 30, 1, 0)
+
+#smoking and overweight together
+
+ins_model2 = lm(charges ~ age + age2 + children + bmi + sex + bmi30*smoker + region, data = insurance)
+
+summary(ins_model2)
+
+
+#plot residuals
+res2 = resid(ins_model2)
+fitted2 = predict(ins_model2)
+plot(y = res2, x = fitted2)
+plot(y = res2, x = insurance$bmi)
+hist(res2)
+```
+
+
+##need to explore logging the data and analyzing the residuals
+
+
+##Fit the model to log(charges) with non-linear, binary indicators, and interactions included
+```{r}
+#age squared
+insurance$age2 = insurance$age^2
+
+#bmi binary up to overweight (30)
+insurance$bmi30 = ifelse(insurance$bmi >= 30, 1, 0)
+
+#smoking and overweight together
+
+ins_model3 = lm(log(charges) ~ age + age2 + children + bmi + sex + smoker*bmi30 + region, data = insurance)
+
+summary(ins_model3)
+
+
+#plot residuals
+res3 = resid(ins_model3)
+fitted3 = predict(ins_model3)
+plot(y = res3, x = fitted3)
+plot(y = res3, x = insurance$bmi)
+plot(y = res3, x = insurance$age)
+plot(y = res3, x = insurance$children)
+plot(y = res3, x = insurance$sex)
+plot(y = res3, x = insurance$smoker)
+hist(res3)
+```
+
+
+##Fit the model to log(charges) and children as factor with non-linear, binary indicators, and interactions included
+```{r}
+#age squared
+insurance$age2 = insurance$age^2
+
+#bmi binary up to overweight (30)
+insurance$bmi30 = ifelse(insurance$bmi >= 30, 1, 0)
+
+#smoking and overweight together
+
+ins_model4 = lm(log(charges) ~ age + age2 + factor(children) + bmi + sex + smoker*bmi30 + region, data = insurance)
+
+summary(ins_model3)
+
+
+#plot residuals
+res4 = resid(ins_model4)
+fitted4 = predict(ins_model4)
+plot(y = res4, x = fitted4)
+plot(y = res4, x = insurance$bmi)
+plot(y = res4, x = insurance$age)
+plot(y = res4, x = insurance$children)
+plot(y = res4, x = insurance$sex)
+plot(y = res4, x = insurance$smoker)
+hist(res4)
+```
