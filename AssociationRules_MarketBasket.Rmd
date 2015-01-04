@@ -1,0 +1,40 @@
+---
+title: "AssociationRules_MarketBasket"
+author: "Ashley Bischof"
+---
+
+###Association Rules
+##Identify fequently purchased groceries with association rules
+
+store data as a sparse matrix with a column for each possible item (ignoring brands):
+
+#Explore and prepare data
+```{r}
+library(arules)
+
+groceries = read.transactions('~/Dropbox/R ref/Machine Learning with R/chapter 8/groceries.csv', sep = ',')
+
+summary(groceries)
+
+inspect(groceries[1:5])
+
+itemFrequency(groceries[,1:3])
+
+itemFrequencyPlot(groceries, support = 0.1)
+
+itemFrequencyPlot(groceries, topN = 20)
+
+image(groceries[1:5])
+image(sample(groceries, 100))
+```
+
+
+#Training the Model
+```{r}
+apriori(groceries)
+#zero rules with default (support = 0.1; confidence = 0.8)
+
+#set support to 0.006 (equivalent to 2 purchases/day)
+
+```
+

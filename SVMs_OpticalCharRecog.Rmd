@@ -108,7 +108,7 @@ table(letter_predictions_rbf_c5, letters_test$letter)
 ```
 
 
-#Improve Model Performance - rbf kernel with c of 5
+#Improve Model Performance - rbf kernel with c of 20
 ```{r}
 letter_classifier_rbf_c20 = ksvm(letter ~ ., data = letters_train, kernel = 'rbfdot', C = 20)
 
@@ -118,7 +118,7 @@ agreement_rbf_c20 = letter_predictions_rbf_c20 == letters_test$letter
 table(agreement_rbf_c20)
 prop.table(table(agreement_rbf_c20))
 #.969
-
+#minimal additional improvement
 table(letter_predictions_rbf_c20, letters_test$letter)
 ```
 
