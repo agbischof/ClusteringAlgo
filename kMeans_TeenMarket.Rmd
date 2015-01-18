@@ -1,0 +1,67 @@
+---
+title: "kMeans_TeenMarket"
+author: "Ashley Bischof"
+date: "January 17, 2015"
+output: html_document
+---
+
+###kMeans Clustering
+Classification of Teen Market Segments
+
+Exploring and preparing the data
+```{r}
+teens = read.csv('~/Dropbox/R ref/Machine Learning with R/chapter 9/snsdata.csv')
+
+str(teens)
+table(teens$gender, useNA = "ifany")
+#data contains ~9% NA for gender
+#setup factor variables with NA as another group
+teens$female = ifelse(teens$gender =='F' & !is.na(teens$gender), 1, 0)
+teens$no_gender = ifelse(is.na(teens$gender), 1, 0)
+#check #s
+table(teens$female, useNA = "ifany")
+table(teens$no_gender, useNA = "ifany")
+
+summary(teens$age)
+#~17% NAs and a some values outside expected range for high schoolers (13-20)
+#remove extemes
+teens$age = ifelse(teens$age >= 13 &teens$age < 20, teens$age, NA)
+#impute age from graduation year
+mean(teens$age, na.rm = TRUE)
+aggregate(data = teens, age ~ gradyear, mean, na.rm = TRUE)
+ave_age = ave(teens$age, teens$gradyear, FUN = function(x) mean(x, na.rm = TRUE))
+teens$age = ifelse(is.na(teens$age), ave_age, teens$age)
+summary(teens$age)
+
+#data is already normalized so separation to test and training data is easy
+letters_train = letters[1:16000, ]
+letters_test = letters[16001:20000, ]
+```
+
+Train Model:
+```{r}
+library(stats)
+
+interests = teens[5:40]
+interests_z = as.data.frame(lapply(interests, scale))
+
+teen_clusters = kmeans(interests_z, 5)
+```
+
+Evaluating Model Performace:
+```{r}
+teen_clusters$size
+teen_clusters$centers
+```
+
+Evaluate Model
+```{r}
+teens$cluster = teen_clusters$cluster
+teens[1:5, c("cluster", "gender", "age", "friends")]
+
+aggregate(data = teens, age ~ cluster, mean)
+aggregate(data = teens, female ~ cluster, mean)
+aggregate(data = teens, friends ~ cluster, mean)
+```
+
+
